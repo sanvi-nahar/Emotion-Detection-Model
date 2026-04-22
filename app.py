@@ -6,6 +6,17 @@ import mediapipe as mp
 import math
 import os
 import gc
+from deepface import DeepFace
+
+# Pre-load DeepFace emotion model to avoid timeout on first request on Render
+try:
+    print("Pre-loading DeepFace model...")
+    # Create a dummy image
+    dummy_img = np.zeros((224, 224, 3), dtype=np.uint8)
+    DeepFace.analyze(dummy_img, actions=['emotion'], enforce_detection=False)
+    print("DeepFace model pre-loaded successfully.")
+except Exception as e:
+    print("DeepFace pre-load error:", e)
 
 app = Flask(__name__)
 CORS(app)
@@ -61,9 +72,7 @@ def predict():
         # Resize (optional but faster)
         image = cv2.resize(image, (640, 480))
 
-        # 🔥 DeepFace AFTER image is ready
-        from deepface import DeepFace
-
+        # 🔥 DeepFace prediction
         result = DeepFace.analyze(
             image,
             actions=['emotion'],

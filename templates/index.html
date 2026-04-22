@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Emotion AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100vh;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        .container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 500px;
+            width: 90%;
+            animation: fadeIn 1s ease-out forwards;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+            background: #000;
+            display: inline-block;
+        }
+
+        video {
+            display: block;
+            width: 100%;
+            max-width: 400px;
+            transform: scaleX(-1); /* Mirror the video */
+        }
+
+        /* Scanning overlay effect */
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(96, 165, 250, 0.5);
+            box-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+            animation: scan 3s infinite linear;
+            pointer-events: none;
+        }
+
+        .result-box {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 15px 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .emotion-label {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .emotion-value {
+            font-weight: 800;
+            font-size: 1.4rem;
+            transition: color 0.3s ease;
+        }
+
+        /* Emotion colors */
+        .emotion-neutral { color: #94a3b8; text-shadow: 0 0 10px rgba(148, 163, 184, 0.4); }
+        .emotion-happy { color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.4); }
+        .emotion-sad, .emotion-cry { color: #f87171; text-shadow: 0 0 10px rgba(248, 113, 113, 0.4); }
+        .emotion-surprise { color: #fde047; text-shadow: 0 0 10px rgba(253, 224, 71, 0.4); }
+        .emotion-laughing { color: #2dd4bf; text-shadow: 0 0 10px rgba(45, 212, 191, 0.4); }
+        .emotion-error { color: #f43f5e; }
+
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Loading dots */
+        .loading:after {
+            content: '...';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { color: rgba(0,0,0,0); text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0);}
+            40% { color: inherit; text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0);}
+            60% { text-shadow: .25em 0 0 inherit, .5em 0 0 rgba(0,0,0,0);}
+            80%, 100% { text-shadow: .25em 0 0 inherit, .5em 0 0 inherit;}
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Live Emotion AI</h2>
+    <p class="subtitle">Real-time facial expression analysis using MediaPipe</p>
+
+    <div class="video-container">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="scan-line"></div>
+    </div>
+    
+    <div>
+        <div class="result-box" id="resultBox">
+            <span class="emotion-label">DETECTED:</span>
+            <span class="emotion-value loading" id="emotionText">Initializing</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById("video");
+    const emotionText = document.getElementById("emotionText");
+    const resultBox = document.getElementById("resultBox");
+    let isProcessing = false;
+
+    // Start camera
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        .then(stream => {
+            video.srcObject = stream;
+            // Wait for video to be ready before starting detection
+            video.onloadedmetadata = () => {
+                emotionText.classList.remove("loading");
+                emotionText.innerText = "Ready";
+                detect();
+            };
+        })
+        .catch(err => {
+            console.error("Camera error:", err);
+            emotionText.classList.remove("loading");
+            updateEmotionUI("Camera Access Denied");
+        });
+
+    function updateEmotionUI(emotionStr) {
+        emotionText.innerText = emotionStr.toUpperCase();
+        
+        // Reset classes
+        emotionText.className = "emotion-value";
+        resultBox.style.borderColor = "transparent";
+        resultBox.style.boxShadow = "none";
+
+        const emLower = emotionStr.toLowerCase();
+        let glowColor = "transparent";
+
+        if (emLower.includes("happy")) {
+            emotionText.classList.add("emotion-happy");
+            glowColor = "rgba(74, 222, 128, 0.3)";
+        } else if (emLower.includes("sad") || emLower.includes("cry") || emLower.includes("anguish")) {
+            emotionText.classList.add("emotion-sad");
+            glowColor = "rgba(248, 113, 113, 0.3)";
+        } else if (emLower.includes("surprise")) {
+            emotionText.classList.add("emotion-surprise");
+            glowColor = "rgba(253, 224, 71, 0.3)";
+        } else if (emLower.includes("laughing")) {
+            emotionText.classList.add("emotion-laughing");
+            glowColor = "rgba(45, 212, 191, 0.3)";
+        } else if (emLower.includes("neutral")) {
+            emotionText.classList.add("emotion-neutral");
+            glowColor = "rgba(148, 163, 184, 0.3)";
+        } else if (emLower.includes("error") || emLower.includes("denied")) {
+            emotionText.classList.add("emotion-error");
+        } else {
+            emotionText.classList.add("emotion-neutral");
+        }
+
+        if (glowColor !== "transparent") {
+            resultBox.style.borderColor = glowColor.replace("0.3", "0.5");
+            resultBox.style.boxShadow = `0 0 20px ${glowColor}`;
+        }
+    }
+
+    // Detect emotion using recursive setTimeout
+    function detect() {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        if (canvas.width === 0 || canvas.height === 0) {
+            isProcessing = false;
+            setTimeout(detect, 500);
+            return;
+        }
+
+        const ctx = canvas.getContext("2d");
+        // Flip image horizontally so it matches the mirrored video playback
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(blob => {
+            if (!blob) {
+                isProcessing = false;
+                setTimeout(detect, 300);
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("image", blob, "frame.jpg");
+
+            fetch("/predict", {
+                method: "POST",
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                if(data.emotion) {
+                    updateEmotionUI(data.emotion);
+                }
+            })
+            .catch(err => {
+                console.error("Prediction Error:", err);
+            })
+            .finally(() => {
+                isProcessing = false;
+                // Run next frame after ~300ms (approx 3 FPS)
+                setTimeout(detect, 300);
+            });
+        }, "image/jpeg", 0.8);
+    }
+</script>
+
+</body>
+</html>

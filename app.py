@@ -44,8 +44,6 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    global landmarker
-
     try:
         if 'image' not in request.files:
             return jsonify({"emotion": "No image provided"}), 400
@@ -60,64 +58,28 @@ def predict():
         if image is None:
             return jsonify({"emotion": "Invalid image"}), 400
 
-        # Resize for speed + stability
+        # Resize (optional but faster)
         image = cv2.resize(image, (640, 480))
 
-        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        # 🔥 DeepFace AFTER image is ready
+        from deepface import DeepFace
 
-        # 🔥 Lazy load model (fixes Render crash)
-        if landmarker is None:
-            landmarker = FaceLandmarker.create_from_options(options)
+        result = DeepFace.analyze(
+            image,
+            actions=['emotion'],
+            enforce_detection=False
+        )
 
-        results = landmarker.detect(mp_image)
-
-        if results is None or len(results.face_landmarks) == 0:
-            return jsonify({"emotion": "No face detected"})
-
-        landmarks = results.face_landmarks[0]
-        h, w, _ = image.shape
-
-        face_width = get_dist(landmarks[234], landmarks[454], w, h)
-
-        emotion = "Neutral"
-
-        if face_width > 0:
-            mouth_open = get_dist(landmarks[13], landmarks[14], w, h) / face_width
-
-            bottom_lip_y = landmarks[17].y * h
-            left_corner_y = landmarks[61].y * h
-            right_corner_y = landmarks[291].y * h
-
-            avg_corner_y = (left_corner_y + right_corner_y) / 2.0
-            smile_curve = (bottom_lip_y - avg_corner_y) / face_width
-
-            # Improved thresholds
-            if mouth_open > 0.08:
-                if smile_curve < 0.035:
-                    emotion = "Cry / Anguish"
-                elif smile_curve > 0.075:
-                    emotion = "Laughing"
-                else:
-                    emotion = "Surprise"
-            else:
-                if smile_curve > 0.07:
-                    emotion = "Happy"
-                elif smile_curve < 0.035:
-                    emotion = "Sad"
-                else:
-                    emotion = "Neutral"
+        emotion = result[0]['dominant_emotion']
 
         print("Emotion:", emotion)
-
-        gc.collect()  # free memory
 
         return jsonify({"emotion": emotion})
 
     except Exception as e:
         print("Error:", str(e))
         return jsonify({"emotion": "Error processing image"}), 500
-
+        
 # ---------------------------
 # Run App (Render compatible)
 # ---------------------------

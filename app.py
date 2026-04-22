@@ -5,12 +5,13 @@ import numpy as np
 import mediapipe as mp
 import math
 import os
+import gc
 
 app = Flask(__name__)
 CORS(app)
 
 # ---------------------------
-# Load MediaPipe Model (no download in production)
+# MediaPipe Setup (lazy loading)
 # ---------------------------
 model_path = 'face_landmarker.task'
 
@@ -24,7 +25,7 @@ options = FaceLandmarkerOptions(
     running_mode=VisionRunningMode.IMAGE
 )
 
-landmarker = FaceLandmarker.create_from_options(options)
+landmarker = None  # Lazy init
 
 # ---------------------------
 # Helper Function
@@ -43,6 +44,8 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    global landmarker
+
     try:
         if 'image' not in request.files:
             return jsonify({"emotion": "No image provided"}), 400
@@ -63,9 +66,12 @@ def predict():
         rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
+        # 🔥 Lazy load model (fixes Render crash)
+        if landmarker is None:
+            landmarker = FaceLandmarker.create_from_options(options)
+
         results = landmarker.detect(mp_image)
 
-        # Safety check
         if results is None or len(results.face_landmarks) == 0:
             return jsonify({"emotion": "No face detected"})
 
@@ -86,7 +92,7 @@ def predict():
             avg_corner_y = (left_corner_y + right_corner_y) / 2.0
             smile_curve = (bottom_lip_y - avg_corner_y) / face_width
 
-            # Improved thresholds (less noisy)
+            # Improved thresholds
             if mouth_open > 0.08:
                 if smile_curve < 0.035:
                     emotion = "Cry / Anguish"
@@ -103,6 +109,8 @@ def predict():
                     emotion = "Neutral"
 
         print("Emotion:", emotion)
+
+        gc.collect()  # free memory
 
         return jsonify({"emotion": emotion})
 
